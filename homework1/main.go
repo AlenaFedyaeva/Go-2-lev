@@ -5,91 +5,103 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"runtime/debug"
 	"time"
 )
 
-var(
+var (
 	ErrTask2 = errors.New("err task2")
 	ErrTask3 = errors.New("err create file task3")
 )
 
-type MyEmplicitErr struct{
-	Time time.Time
+type MyImplicitErr struct {
+	time  time.Time
+	trace string
+	msg   string
 }
 
-func (e *MyEmplicitErr) getTime() time.Time{
-	return e.Time
-} 
-
-func (e *MyEmplicitErr) Error() string {
-	return fmt.Sprintf("hw1: error time:  %s",e.Time.String())
+func (e *MyImplicitErr) getTime() time.Time {
+	return e.time
+}
+func (e *MyImplicitErr) getMsg() string {
+	return e.trace
 }
 
+func New(msg string) error {
+	return &MyImplicitErr{
+		time:  time.Now(),
+		trace: string(debug.Stack()),
+		msg:   msg,
+	}
+}
 
-func main(){
+func (e *MyImplicitErr) Error() string {
+	return fmt.Sprintf("hw1: error time:  %s", e.time.String())
+}
+
+func main() {
 	fmt.Println("HW1")
 	//1
 	task1()
 	//2
-	err:=task2()
-	fmt.Println("t2 -- ",err)
-	
+	err := task2()
+	fmt.Println("t2 -- ", err)
+
 	//3
-	err=task3()
-	fmt.Println("t3 -- ",err)
+	err = task3()
+	fmt.Println("t3 -- ", err)
 
 	fmt.Println("after panic")
 }
 
-func task1(){
-	defer panicHandler()
+func task1() {
+	//defer panicHandler()
 
-	implicitPanic()
+	panicingFunc()
 }
 
-func task2() (err error){
-	defer func ()  {
+func task2() (err error) {
+	defer func() {
 		if v := recover(); v != nil {
-			buff := make([]byte, 1024)
-			runtime.Stack(buff, false)
-			err = &MyEmplicitErr{Time: time.Now(),}
-			
+			err = New("text err task2")
+
 		}
-		
+
 	}()
 
 	panic("task_2")
-	
+
 }
 
-
-func task3() error{
+func task3() error {
 
 	file, err := os.Create("3.txt")
 
-	if err != nil{                          // если возникла ошибка
-        fmt.Println("Unable to create file:", err) 
-        return fmt.Errorf("%w: %s", ErrTask3, err )// 
-    }
-    defer file.Close()                      // закрываем файл
-    
-	fmt.Println(file.Name()) 
+	if err != nil { // если возникла ошибка
+		fmt.Println("Unable to create file:", err)
+		return fmt.Errorf("%w: %s", ErrTask3, err) //
+	}
+	defer file.Close() // закрываем файл
 
-	return nil             
+	fmt.Println(file.Name())
+
+	return nil
 
 }
 
-func implicitPanic(){
-	arr :=[]int{1,2,3,4,5,6,7,8,9,10}
+func panicingFunc() (err error) {
+	defer panicHandler(func(e error) { err = e })
+
+	arr := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	for i := 0; i <= len(arr); i++ {
 		fmt.Println(arr[i])
 	}
-} 
+}
 
-func panicHandler(){
+func panicHandler(setErr func(error)) {
 	if v := recover(); v != nil {
 		buff := make([]byte, 1024)
 		runtime.Stack(buff, false)
-		fmt.Printf("panic wiht value: %v, %s\n", v,buff)
+		setErr(fmt.Errorf("panic wiht value: %v, %s\n", v, buff))
 	}
 }
