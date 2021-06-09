@@ -1,27 +1,45 @@
 package main
 
 import (
-	"log"
+	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 )
 
+func doWorkContext(ctx context.Context) {
+	fmt.Println("ctxT")
+	ctxT, cancelFunc := context.WithTimeout(ctx, 30*time.Second)
+	defer cancelFunc()
+	cancelCh := make(chan os.Signal, 1)
+	// catch SIGETRM or SIGINTERRUPT
+	signal.Notify(cancelCh, syscall.SIGTERM, syscall.SIGINT)
+
+	// Используем select для выхода по истечении времени жизни контекста
+	select {
+	case <-ctxT.Done():
+		fmt.Println("ctx.Done: Time to exit")
+
+	case sig := <-cancelCh:
+		fmt.Printf("Caught SIGTERM %v", sig)
+	}
+}
+
 func main() {
-	cancelChan := make(chan os.Signal, 1)
-    // catch SIGETRM or SIGINTERRUPT
-    signal.Notify(cancelChan, syscall.SIGTERM, syscall.SIGINT)
-    go func() {
-        // start your software here. Maybe your need to replace the for loop with other code
-        for {
-            // replace the time.Sleep with your code
-            log.Println("Loop tick")
-            time.Sleep(time.Second)
-        }
-    }()
-    sig := <-cancelChan
-    log.Printf("Caught SIGTERM %v", sig)
-    // shutdown other goroutines gracefully
-    // close other resources
+	// Создаем контекст background
+	ctx := context.Background()
+	// Производим контекст с отменой
+	ctxWithCancel, cancelFunction := context.WithCancel(ctx)
+
+	defer func() {
+		fmt.Println("Main Defer: canceling context")
+		cancelFunction()
+	}()
+
+	
+	// Выполнение работы
+	doWorkContext(ctxWithCancel)
+	fmt.Println("Bye!")
 }
