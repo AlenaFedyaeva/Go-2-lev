@@ -12,15 +12,14 @@ import (
 func main() {
 
 	var n int
-   flag.IntVar(&n, "n", 1234, "flag n ")
-   fmt.Println("f", n)
+	flag.IntVar(&n, "n", 1234, "flag n ")
+	fmt.Println("f", n)
 	var (
 		counter int32
 
 		// Создаем экземпляр
 		wg = sync.WaitGroup{}
 	)
-
 
 	for i := 0; i < n; i += 1 {
 		wg.Add(1)
